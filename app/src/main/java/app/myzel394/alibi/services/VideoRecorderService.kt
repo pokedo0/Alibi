@@ -5,6 +5,9 @@ import android.content.Intent
 import android.content.pm.ServiceInfo
 import android.os.Build
 import android.util.Range
+import androidx.annotation.OptIn
+import androidx.camera.camera2.interop.Camera2CameraInfo
+import androidx.camera.camera2.interop.ExperimentalCamera2Interop
 import androidx.camera.core.Camera
 import androidx.camera.core.CameraSelector
 import androidx.camera.core.TorchState
@@ -57,17 +60,35 @@ class VideoRecorderService :
 
     private lateinit var selectedCamera: CameraSelector
     private var enableAudio by Delegates.notNull<Boolean>()
+    private var cameraTypeHint: String? = null
 
     var onCameraControlAvailable = {}
 
     var cameraControl: CameraControl? = null
         private set
 
+    @OptIn(ExperimentalCamera2Interop::class)
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
         if (intent?.action == "init") {
-            selectedCamera = CameraSelector.Builder().requireLensFacing(
-                intent.getIntExtra("cameraID", CameraSelector.LENS_FACING_BACK)
-            ).build()
+            val logicalId = intent.getStringExtra("logicalCameraId")
+            val cameraIdString = intent.getStringExtra("cameraIdString")
+            // Use logical camera ID for CameraX selection (it only knows logical cameras)
+            val selectorId = logicalId ?: cameraIdString
+            selectedCamera = if (selectorId != null) {
+                CameraSelector.Builder()
+                    .addCameraFilter { cameras ->
+                        cameras.filter { cameraInfo ->
+                            Camera2CameraInfo.from(cameraInfo).cameraId == selectorId
+                        }
+                    }
+                    .build()
+            } else {
+                // Legacy fallback: select by lens facing direction
+                CameraSelector.Builder().requireLensFacing(
+                    intent.getIntExtra("cameraID", CameraSelector.LENS_FACING_BACK)
+                ).build()
+            }
+            cameraTypeHint = intent.getStringExtra("cameraType")
             enableAudio = intent.getBooleanExtra("enableAudio", true)
         }
 
@@ -161,21 +182,20 @@ class VideoRecorderService :
     private fun buildRecorder() = Recorder.Builder()
         .setQualitySelector(
             settings.videoRecorderSettings.getQualitySelector()
-                ?: QualitySelector.from(Quality.HIGHEST)
+                ?: QualitySelector.from(Quality.HD)
         )
         .apply {
-            if (settings.videoRecorderSettings.targetedVideoBitRate != null) {
-                setTargetVideoEncodingBitRate(settings.videoRecorderSettings.targetedVideoBitRate!!)
-            }
+            val bitRate = settings.videoRecorderSettings.targetedVideoBitRate
+                ?: DEFAULT_VIDEO_BITRATE
+            setTargetVideoEncodingBitRate(bitRate)
         }
         .build()
 
     private fun buildVideoCapture(recorder: Recorder) = VideoCapture.Builder(recorder)
         .apply {
             val frameRate = settings.videoRecorderSettings.targetFrameRate
-            if (frameRate != null) {
-                setTargetFrameRate(Range(frameRate, frameRate))
-            }
+                ?: DEFAULT_FRAME_RATE
+            setTargetFrameRate(Range(frameRate, frameRate))
         }
         .build()
 
@@ -197,6 +217,19 @@ class VideoRecorderService :
                     selectedCamera,
                     videoCapture
                 )
+
+                // Apply zoom to select the physical camera within a logical multi-camera
+                cameraTypeHint?.let { type ->
+                    val zoomState = camera!!.cameraInfo.zoomState.value
+                    if (zoomState != null) {
+                        val ratio = when (type) {
+                            "WIDE_ANGLE" -> zoomState.minZoomRatio
+                            "TELEPHOTO" -> zoomState.maxZoomRatio
+                            else -> null
+                        }
+                        ratio?.let { camera!!.cameraControl.setZoomRatio(it) }
+                    }
+                }
 
                 cameraControl = CameraControl(camera!!).also {
                     it.init()
@@ -317,6 +350,8 @@ class VideoRecorderService :
 
     companion object {
         const val CAMERA_CLOSE_TIMEOUT = 20000L
+        const val DEFAULT_FRAME_RATE = 24
+        const val DEFAULT_VIDEO_BITRATE = 2 * 1000 * 1000 // 2 Mbps
     }
 
     class CameraControl(

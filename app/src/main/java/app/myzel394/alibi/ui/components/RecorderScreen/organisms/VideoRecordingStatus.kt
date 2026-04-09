@@ -157,23 +157,27 @@ fun _VideoGeneralInfo(videoRecorder: VideoRecorderModel) {
                     )
             )
         } else {
+            val cameraLabel = videoRecorder.selectedCamera?.let { camera ->
+                if (CameraInfo.checkHasNormalCameras(availableCameras)) {
+                    if (camera.lens == CameraInfo.Lens.BACK)
+                        stringResource(R.string.ui_videoRecorder_action_start_settings_cameraLens_back_label)
+                    else
+                        stringResource(R.string.ui_videoRecorder_action_start_settings_cameraLens_front_label)
+                } else {
+                    val typeLabels = mapOf(
+                        CameraInfo.CameraType.MAIN to stringResource(R.string.ui_videoRecorder_cameraType_main),
+                        CameraInfo.CameraType.WIDE_ANGLE to stringResource(R.string.ui_videoRecorder_cameraType_wideAngle),
+                        CameraInfo.CameraType.TELEPHOTO to stringResource(R.string.ui_videoRecorder_cameraType_telephoto),
+                        CameraInfo.CameraType.MACRO to stringResource(R.string.ui_videoRecorder_cameraType_macro),
+                        CameraInfo.CameraType.UNKNOWN to stringResource(R.string.ui_videoRecorder_cameraType_unknown),
+                    )
+                    typeLabels[camera.cameraType]
+                        ?: stringResource(R.string.ui_videoRecorder_action_start_settings_cameraLens_label, camera.cameraId)
+                }
+            } ?: stringResource(R.string.ui_videoRecorder_action_start_settings_cameraLens_back_label)
+
             Text(
-                stringResource(
-                    R.string.form_value_selected,
-                    if (CameraInfo.checkHasNormalCameras(availableCameras)) {
-                        videoRecorder.cameraID.let {
-                            if (it == CameraInfo.Lens.BACK.androidValue)
-                                stringResource(R.string.ui_videoRecorder_action_start_settings_cameraLens_back_label)
-                            else
-                                stringResource(R.string.ui_videoRecorder_action_start_settings_cameraLens_front_label)
-                        }
-                    } else {
-                        stringResource(
-                            R.string.ui_videoRecorder_action_start_settings_cameraLens_label,
-                            videoRecorder.cameraID
-                        )
-                    }
-                ),
+                stringResource(R.string.form_value_selected, cameraLabel),
                 style = MaterialTheme.typography.labelMedium,
             )
         }

@@ -71,6 +71,7 @@ import kotlin.math.abs
 fun VideoRecorderPreparationSheet(
     showPreview: Boolean,
     videoSettings: VideoRecorderModel,
+    appSettings: app.myzel394.alibi.db.AppSettings? = null,
     onDismiss: () -> Unit,
     onPreviewVisible: () -> Unit,
     onPreviewHidden: () -> Unit,
@@ -82,7 +83,7 @@ fun VideoRecorderPreparationSheet(
     val cameras = CameraInfo.queryAvailableCameras(context)
 
     LaunchedEffect(Unit) {
-        videoSettings.init(context)
+        videoSettings.init(context, appSettings)
     }
 
     ModalBottomSheet(

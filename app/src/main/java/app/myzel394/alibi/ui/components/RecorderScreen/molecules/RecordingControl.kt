@@ -107,8 +107,8 @@ fun RecordingControl(
                     contentAlignment = Alignment.Center,
                 ) {
                     SaveButton(
-                        onSave = onSaveAndStop,
-                        onLongClick = onSaveCurrent,
+                        onSave = onSaveCurrent,
+                        onLongClick = onSaveAndStop,
                         modifier = Modifier.fillMaxWidth(),
                     )
                 }
@@ -173,8 +173,8 @@ fun RecordingControl(
                     contentAlignment = Alignment.Center,
                 ) {
                     SaveButton(
-                        onSave = onSaveAndStop,
-                        onLongClick = onSaveCurrent,
+                        onSave = onSaveCurrent,
+                        onLongClick = onSaveAndStop,
                     )
                 }
             }

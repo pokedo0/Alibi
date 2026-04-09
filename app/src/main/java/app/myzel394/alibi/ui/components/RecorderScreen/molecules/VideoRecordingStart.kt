@@ -39,6 +39,7 @@ fun VideoRecordingStart(
         VideoRecorderPreparationSheet(
             showPreview = showPreview,
             videoSettings = videoRecorder,
+            appSettings = appSettings,
             onDismiss = {
                 showSheet = false
             },
@@ -61,14 +62,6 @@ fun VideoRecordingStart(
             label = stringResource(R.string.ui_videoRecorder_action_start_label),
             description = stringResource(R.string.ui_videoRecorder_action_configure_label),
             icon = Icons.Default.CameraAlt,
-            onLongClick = {
-                if (appSettings.requiresExternalStoragePermission(context)) {
-                    triggerExternalStorage()
-                    return@BigButton
-                }
-
-                showSheet = true
-            },
             onClick = {
                 if (appSettings.requiresExternalStoragePermission(context)) {
                     triggerExternalStorage()
@@ -78,11 +71,9 @@ fun VideoRecordingStart(
                 if (PermissionHelper.hasGranted(
                         context,
                         Manifest.permission.CAMERA
-                    ) && PermissionHelper.hasGranted(
-                        context,
-                        Manifest.permission.RECORD_AUDIO
                     )
                 ) {
+                    videoRecorder.init(context, appSettings)
                     videoRecorder.startRecording(context, appSettings)
                 } else {
                     showSheet = true

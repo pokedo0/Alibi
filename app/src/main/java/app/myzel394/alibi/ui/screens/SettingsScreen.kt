@@ -52,6 +52,7 @@ import app.myzel394.alibi.ui.components.SettingsScreen.Tiles.MaxDurationTile
 import app.myzel394.alibi.ui.components.SettingsScreen.Tiles.SaveFolderTile
 import app.myzel394.alibi.ui.components.SettingsScreen.Tiles.VideoRecorderBitrateTile
 import app.myzel394.alibi.ui.components.SettingsScreen.Tiles.VideoRecorderFrameRateTile
+import app.myzel394.alibi.ui.components.SettingsScreen.Tiles.VideoCameraSelectionTile
 import app.myzel394.alibi.ui.components.SettingsScreen.Tiles.VideoRecorderQualityTile
 import app.myzel394.alibi.ui.components.SettingsScreen.atoms.InAppLanguagePicker
 import app.myzel394.alibi.ui.components.SettingsScreen.atoms.ThemeSelector
@@ -151,6 +152,7 @@ fun SettingsScreen(
                 settings = settings,
                 snackbarHostState = snackbarHostState,
             )
+            VideoCameraSelectionTile(settings = settings)
             GlobalSwitch(
                 label = stringResource(R.string.ui_settings_advancedSettings_label),
                 checked = settings.showAdvancedSettings,
