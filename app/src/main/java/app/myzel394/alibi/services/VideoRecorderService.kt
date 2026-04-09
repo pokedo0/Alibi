@@ -342,7 +342,7 @@ class VideoRecorderService :
             folderPath = batchesFolder.exportFolderForSettings(),
             recordingStart = recordingStart,
             maxDuration = settings.maxDuration,
-            batchesAmount = batchesFolder.getBatchesForFFmpeg().size,
+            batchesAmount = batchesFolder.getBatchInputSources().size,
             fileExtension = settings.videoRecorderSettings.fileExtension,
             intervalDuration = settings.intervalDuration,
             type = RecordingInformation.Type.VIDEO,

@@ -24,12 +24,9 @@ import app.myzel394.alibi.ui.RECORDER_INTERNAL_SELECTED_VALUE
 import app.myzel394.alibi.ui.RECORDER_MEDIA_SELECTED_VALUE
 import app.myzel394.alibi.ui.SUPPORTS_SCOPED_STORAGE
 import app.myzel394.alibi.ui.utils.PermissionHelper
-import com.arthenica.ffmpegkit.FFmpegKitConfig
-import kotlinx.coroutines.CompletableDeferred
 import java.io.File
 import java.time.LocalDateTime
 import java.time.format.DateTimeFormatter
-import kotlin.reflect.KFunction4
 
 
 abstract class BatchesFolder(
@@ -38,8 +35,6 @@ abstract class BatchesFolder(
     open val customFolder: DocumentFile? = null,
     open val subfolderName: String = ".recordings",
 ) {
-    abstract val concatenationFunction: KFunction4<Iterable<String>, String, String, (Int) -> Unit, CompletableDeferred<Unit>>
-    abstract val ffmpegParameters: Array<String>
     abstract val scopedMediaContentUri: Uri
     abstract val legacyMediaFolder: File
 
@@ -117,35 +112,22 @@ abstract class BatchesFolder(
         }
     }
 
-    fun getBatchesForFFmpeg(): List<String> {
+    fun getBatchInputSources(): List<InputSource> {
         return when (type) {
             BatchType.INTERNAL ->
-                ((getInternalFolder()
+                (getInternalFolder()
                     .listFiles()
-                    ?.filter {
-                        it.nameWithoutExtension.toIntOrNull() != null
-                    }
+                    ?.filter { it.nameWithoutExtension.toIntOrNull() != null }
                     ?.toList()
-                    ?: emptyList()) as List<File>)
-                    .sortedBy {
-                        it.nameWithoutExtension.toInt()
-                    }
-                    .map { it.absolutePath }
+                    ?: emptyList())
+                    .sortedBy { it.nameWithoutExtension.toInt() }
+                    .map { InputSource.FilePath(it.absolutePath) }
 
             BatchType.CUSTOM -> getCustomDefinedFolder()
                 .listFiles()
-                .filter {
-                    it.name?.substringBeforeLast(".")?.toIntOrNull() != null
-                }
-                .sortedBy {
-                    it.name!!.substringBeforeLast(".").toInt()
-                }
-                .map {
-                    FFmpegKitConfig.getSafParameterForRead(
-                        context,
-                        it.uri,
-                    )!!
-                }
+                .filter { it.name?.substringBeforeLast(".")?.toIntOrNull() != null }
+                .sortedBy { it.name!!.substringBeforeLast(".").toInt() }
+                .map { InputSource.ContentUri(it.uri) }
 
             BatchType.MEDIA -> {
                 val fileUris = mutableListOf<Pair<String, Uri>>()
@@ -162,21 +144,12 @@ abstract class BatchesFolder(
 
                 fileUris
                     .sortedBy {
-                        val name = it.first
-
-                        return@sortedBy name
+                        it.first
                             .substring(mediaPrefix.length)
                             .substringBeforeLast(".")
                             .toInt()
                     }
-                    .map { pair ->
-                        val uri = pair.second
-
-                        FFmpegKitConfig.getSafParameterForRead(
-                            context,
-                            uri,
-                        )!!
-                    }
+                    .map { (_, uri) -> InputSource.ContentUri(uri) }
             }
         }
     }
@@ -234,11 +207,14 @@ abstract class BatchesFolder(
         }
     }
 
-    abstract fun getOutputFileForFFmpeg(
+    abstract fun getOutputPath(
         date: LocalDateTime,
         extension: String,
         fileName: String,
     ): String
+
+    /** Returns the merged output file extension (may differ from batch extension). */
+    abstract val mergedFileExtension: String
 
     abstract fun cleanup()
 
@@ -253,46 +229,34 @@ abstract class BatchesFolder(
         val disableCache = disableCache ?: (type != BatchType.INTERNAL)
         val date = recording.getStartDateForFilename(filenameFormat)
 
-        if (!disableCache && checkIfOutputAlreadyExists(fileName)
-        ) {
-            return getOutputFileForFFmpeg(
+        if (!disableCache && checkIfOutputAlreadyExists(fileName)) {
+            return getOutputPath(
                 date = recording.recordingStart,
-                extension = recording.fileExtension,
+                extension = mergedFileExtension,
                 fileName = fileName,
             )
         }
 
-        for (parameter in ffmpegParameters) {
-            Log.i("Concatenation", "Trying parameter $parameter")
-            onNextParameterTry(parameter)
-            onProgress(null)
+        val inputSources = getBatchInputSources()
+        val outputPath = getOutputPath(
+            date = date,
+            extension = mergedFileExtension,
+            fileName = fileName,
+        )
+        val outputFormat = NativeMediaConcatenator.outputFormatForExtension(mergedFileExtension)
 
-            try {
-                val fullTime = recording.getFullDuration().toFloat();
-                val filePaths = getBatchesForFFmpeg()
+        Log.i("Concatenation", "Concatenating ${inputSources.size} files to $outputPath")
+        onProgress(0f)
 
-                val outputFile = getOutputFileForFFmpeg(
-                    date = date,
-                    extension = recording.fileExtension,
-                    fileName = fileName,
-                )
+        NativeMediaConcatenator.concatenateFiles(
+            context = context,
+            inputSources = inputSources,
+            outputPath = outputPath,
+            outputFormat = outputFormat,
+            onProgress = { progress -> onProgress(progress) },
+        )
 
-                concatenationFunction(
-                    filePaths,
-                    outputFile,
-                    parameter
-                ) { time ->
-                    // The progressbar for the conversion is calculated based on the
-                    // current time of the conversion and the total time of the batches.
-                    onProgress(time / fullTime)
-                }.await()
-                return outputFile
-            } catch (e: MediaConverter.FFmpegException) {
-                continue
-            }
-        }
-
-        throw MediaConverter.FFmpegException("Failed to concatenate")
+        return outputPath
     }
 
     fun exportFolderForSettings(): String {

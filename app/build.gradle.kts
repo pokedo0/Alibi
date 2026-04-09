@@ -126,9 +126,6 @@ dependencies {
 
 	coreLibraryDesugaring(libs.desugar.jdk.libs)
 
-	implementation(files("libs/ffmpeg-kit-full-gpl-6.0-2.LTS.aar"))
-	implementation(libs.smart.exception)
-
 	implementation(libs.datastore.preferences)
 
 	implementation(libs.serialization.json)

@@ -179,7 +179,7 @@ fun RecorderEventsHandler(
 
                     val fileName = batchesFolder.getName(
                         recording.recordingStart,
-                        recording.fileExtension,
+                        batchesFolder.mergedFileExtension,
                     )
 
                     batchesFolder.concatenate(
