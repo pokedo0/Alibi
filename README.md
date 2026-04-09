@@ -14,6 +14,27 @@
 Alibi keeps recording audio/video in the background and saves the last 30 minutes at your request.
 Everything is completely configurable. No internet connection required.
 
+## Features
+
+- Continuous audio and video recording in the background
+- Circular buffer keeps only the last 30 minutes (configurable)
+- Multi-camera support: select between main, wide-angle, and telephoto cameras on supported devices
+- Save recordings while continuing to record
+- Biometric app lock for privacy
+- Custom notification presets to disguise the recording notification
+- Configurable video quality, frame rate, and bitrate
+- Battery-optimized recording defaults (HD/24fps/2Mbps)
+- 30+ languages supported
+- Completely offline: no internet connection required, no data collected
+
+## Tech Stack
+
+- Kotlin 2.0 with K2 compiler
+- Jetpack Compose with Material Design 3
+- CameraX for video recording
+- DataStore for persistent settings
+- Type-safe navigation with kotlinx.serialization
+
 # Download
 
 [<img src="readme_content/google-play-badge.png" alt="Get it on Google Play" height="80">](https://play.google.com/store/apps/details?id=app.myzel394.alibi)
