@@ -30,117 +30,113 @@ import app.myzel394.alibi.ui.screens.SettingsScreen
 import app.myzel394.alibi.ui.screens.WelcomeScreen
 
 const val SCALE_IN = 1.25f
-const val DEBUG_SKIP_WELCOME = false;
+const val DEBUG_SKIP_WELCOME = false
 
 @Composable
 fun Navigation(
-    audioRecorder: AudioRecorderModel = viewModel(),
-    videoRecorder: VideoRecorderModel = viewModel(),
+	audioRecorder: AudioRecorderModel = viewModel(),
+	videoRecorder: VideoRecorderModel = viewModel(),
 ) {
-    val navController = rememberNavController()
-    val context = LocalContext.current
-    val settings = context
-        .dataStore
-        .data
-        .collectAsState(initial = null)
-        .value ?: return
+	val navController = rememberNavController()
+	val context = LocalContext.current
+	val settings = context
+		.dataStore
+		.data
+		.collectAsState(initial = null)
+		.value ?: return
 
-    DisposableEffect(Unit) {
-        audioRecorder.bindToService(context)
-        videoRecorder.bindToService(context)
+	DisposableEffect(Unit) {
+		audioRecorder.bindToService(context)
+		videoRecorder.bindToService(context)
 
-        onDispose {
-            audioRecorder.unbindFromService(context)
-            videoRecorder.unbindFromService(context)
-        }
-    }
+		onDispose {
+			audioRecorder.unbindFromService(context)
+			videoRecorder.unbindFromService(context)
+		}
+	}
 
-    NavHost(
-        modifier = Modifier
-            .background(MaterialTheme.colorScheme.background),
-        navController = navController,
-        startDestination = if (settings.hasSeenOnboarding || DEBUG_SKIP_WELCOME) Screen.AudioRecorder.route else Screen.Welcome.route,
-    ) {
-        composable(Screen.Welcome.route) {
-            WelcomeScreen(
-                onNavigateToAudioRecorderScreen = {
-                    val mainHandler = ContextCompat.getMainExecutor(context)
+	NavHost(
+		modifier = Modifier
+			.background(MaterialTheme.colorScheme.background),
+		navController = navController,
+		startDestination = if (settings.hasSeenOnboarding || DEBUG_SKIP_WELCOME) Screen.Recorder else Screen.Welcome,
+	) {
+		composable<Screen.Welcome> {
+			WelcomeScreen(
+				onNavigateToAudioRecorderScreen = {
+					val mainHandler = ContextCompat.getMainExecutor(context)
 
-                    mainHandler.execute {
-                        navController.navigate(Screen.AudioRecorder.route)
-                    }
-                },
-            )
-        }
-        composable(
-            Screen.AudioRecorder.route,
-            enterTransition = {
-                when (initialState.destination.route) {
-                    Screen.Welcome.route -> null
-                    else -> scaleIn(initialScale = SCALE_IN) + fadeIn()
-                }
-            },
-            exitTransition = {
-                scaleOut(targetScale = SCALE_IN) + fadeOut(tween(durationMillis = 150))
-            }
-        ) {
-            RecorderScreen(
-                onNavigateToSettingsScreen = {
-                    navController.navigate(Screen.Settings.route)
-                },
-                audioRecorder = audioRecorder,
-                videoRecorder = videoRecorder,
-                settings = settings,
-            )
-        }
-        composable(
-            Screen.Settings.route,
-            enterTransition = {
-                scaleIn(initialScale = 1 / SCALE_IN) + fadeIn()
-            },
-            exitTransition = {
-                scaleOut(targetScale = 1 / SCALE_IN) + fadeOut(tween(durationMillis = 150))
-            }
-        ) {
-            SettingsScreen(
-                onBackNavigate = navController::popBackStack,
-                onNavigateToCustomRecordingNotifications = {
-                    navController.navigate(Screen.CustomRecordingNotifications.route)
-                },
-                onNavigateToAboutScreen = { navController.navigate(Screen.About.route) },
-                audioRecorder = audioRecorder,
-                videoRecorder = videoRecorder,
-            )
-        }
-        composable(
-            Screen.CustomRecordingNotifications.route,
-            enterTransition = {
-                slideInHorizontally(
-                    initialOffsetX = { it -> it / 2 }
-                ) + fadeIn()
-            },
-            exitTransition = {
-                slideOutHorizontally(
-                    targetOffsetX = { it -> it / 2 }
-                ) + fadeOut(tween(150))
-            }
-        ) {
-            CustomRecordingNotificationsScreen(
-                onBackNavigate = navController::popBackStack
-            )
-        }
-        composable(
-            Screen.About.route,
-            enterTransition = {
-                scaleIn()
-            },
-            exitTransition = {
-                scaleOut() + fadeOut(tween(150))
-            }
-        ) {
-            AboutScreen(
-                onBackNavigate = navController::popBackStack,
-            )
-        }
-    }
+					mainHandler.execute {
+						navController.navigate(Screen.Recorder)
+					}
+				},
+			)
+		}
+		composable<Screen.Recorder>(
+			enterTransition = {
+				if (initialState.destination.route == "app.myzel394.alibi.ui.enums.Screen.Welcome")
+					null
+				else
+					scaleIn(initialScale = SCALE_IN) + fadeIn()
+			},
+			exitTransition = {
+				scaleOut(targetScale = SCALE_IN) + fadeOut(tween(durationMillis = 150))
+			}
+		) {
+			RecorderScreen(
+				onNavigateToSettingsScreen = {
+					navController.navigate(Screen.Settings)
+				},
+				audioRecorder = audioRecorder,
+				videoRecorder = videoRecorder,
+				settings = settings,
+			)
+		}
+		composable<Screen.Settings>(
+			enterTransition = {
+				scaleIn(initialScale = 1 / SCALE_IN) + fadeIn()
+			},
+			exitTransition = {
+				scaleOut(targetScale = 1 / SCALE_IN) + fadeOut(tween(durationMillis = 150))
+			}
+		) {
+			SettingsScreen(
+				onBackNavigate = navController::popBackStack,
+				onNavigateToCustomRecordingNotifications = {
+					navController.navigate(Screen.CustomRecordingNotifications)
+				},
+				onNavigateToAboutScreen = { navController.navigate(Screen.About) },
+				audioRecorder = audioRecorder,
+				videoRecorder = videoRecorder,
+			)
+		}
+		composable<Screen.CustomRecordingNotifications>(
+			enterTransition = {
+				slideInHorizontally(
+					initialOffsetX = { it -> it / 2 }
+				) + fadeIn()
+			},
+			exitTransition = {
+				slideOutHorizontally(
+					targetOffsetX = { it -> it / 2 }
+				) + fadeOut(tween(150))
+			}
+		) {
+			CustomRecordingNotificationsScreen(
+				onBackNavigate = navController::popBackStack
+			)
+		}
+		composable<Screen.About>(
+			enterTransition = {
+				scaleIn()
+			},
+			exitTransition = {
+				scaleOut() + fadeOut(tween(150))
+			}
+		) {
+			AboutScreen(
+				onBackNavigate = navController::popBackStack,
+			)
+		}
+	}
 }

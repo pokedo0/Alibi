@@ -1,0 +1,73 @@
+[versions]
+agp = "8.10.1"
+kotlin = "2.0.21"
+core-ktx = "1.16.0"
+lifecycle = "2.9.0"
+activity = "1.10.1"
+compose-bom = "2025.07.00"
+material3 = "1.3.2"
+material-icons = "1.7.8"
+appcompat = "1.7.1"
+documentfile = "1.1.0"
+navigation = "2.8.9"
+hilt = "2.51.1"
+hilt-navigation = "1.2.0"
+desugar = "2.1.5"
+ffmpeg-kit = "6.0-2.LTS"
+datastore = "1.1.7"
+serialization-json = "1.7.3"
+sheets-compose = "1.2.0"
+camerax = "1.4.2"
+shimmer = "1.2.0"
+biometric = "1.2.0-alpha05"
+junit = "4.13.2"
+androidx-junit = "1.2.1"
+espresso = "3.6.1"
+
+[libraries]
+core-ktx = { module = "androidx.core:core-ktx", version.ref = "core-ktx" }
+lifecycle-runtime-ktx = { module = "androidx.lifecycle:lifecycle-runtime-ktx", version.ref = "lifecycle" }
+lifecycle-service = { module = "androidx.lifecycle:lifecycle-service", version.ref = "lifecycle" }
+activity-compose = { module = "androidx.activity:activity-compose", version.ref = "activity" }
+activity-ktx = { module = "androidx.activity:activity-ktx", version.ref = "activity" }
+compose-bom = { module = "androidx.compose:compose-bom", version.ref = "compose-bom" }
+compose-ui = { module = "androidx.compose.ui:ui" }
+compose-ui-graphics = { module = "androidx.compose.ui:ui-graphics" }
+compose-ui-tooling-preview = { module = "androidx.compose.ui:ui-tooling-preview" }
+compose-ui-tooling = { module = "androidx.compose.ui:ui-tooling" }
+compose-ui-test-manifest = { module = "androidx.compose.ui:ui-test-manifest" }
+compose-ui-test-junit4 = { module = "androidx.compose.ui:ui-test-junit4" }
+material3 = { module = "androidx.compose.material3:material3", version.ref = "material3" }
+material-icons-extended = { module = "androidx.compose.material:material-icons-extended", version.ref = "material-icons" }
+appcompat = { module = "androidx.appcompat:appcompat", version.ref = "appcompat" }
+documentfile = { module = "androidx.documentfile:documentfile", version.ref = "documentfile" }
+navigation-compose = { module = "androidx.navigation:navigation-compose", version.ref = "navigation" }
+hilt-android = { module = "com.google.dagger:hilt-android", version.ref = "hilt" }
+hilt-compiler = { module = "com.google.dagger:hilt-compiler", version.ref = "hilt" }
+hilt-navigation-compose = { module = "androidx.hilt:hilt-navigation-compose", version.ref = "hilt-navigation" }
+desugar-jdk-libs = { module = "com.android.tools:desugar_jdk_libs", version.ref = "desugar" }
+smart-exception = { module = "com.arthenica:smart-exception-java", version = "0.2.1" }
+datastore-preferences = { module = "androidx.datastore:datastore-preferences", version.ref = "datastore" }
+serialization-json = { module = "org.jetbrains.kotlinx:kotlinx-serialization-json", version.ref = "serialization-json" }
+sheets-core = { module = "com.maxkeppeler.sheets-compose-dialogs:core", version.ref = "sheets-compose" }
+sheets-duration = { module = "com.maxkeppeler.sheets-compose-dialogs:duration", version.ref = "sheets-compose" }
+sheets-list = { module = "com.maxkeppeler.sheets-compose-dialogs:list", version.ref = "sheets-compose" }
+sheets-input = { module = "com.maxkeppeler.sheets-compose-dialogs:input", version.ref = "sheets-compose" }
+camerax-core = { module = "androidx.camera:camera-core", version.ref = "camerax" }
+camerax-camera2 = { module = "androidx.camera:camera-camera2", version.ref = "camerax" }
+camerax-lifecycle = { module = "androidx.camera:camera-lifecycle", version.ref = "camerax" }
+camerax-video = { module = "androidx.camera:camera-video", version.ref = "camerax" }
+camerax-view = { module = "androidx.camera:camera-view", version.ref = "camerax" }
+camerax-extensions = { module = "androidx.camera:camera-extensions", version.ref = "camerax" }
+shimmer = { module = "com.valentinilk.shimmer:compose-shimmer", version.ref = "shimmer" }
+biometric-ktx = { module = "androidx.biometric:biometric-ktx", version.ref = "biometric" }
+junit = { module = "junit:junit", version.ref = "junit" }
+androidx-junit = { module = "androidx.test.ext:junit", version.ref = "androidx-junit" }
+espresso-core = { module = "androidx.test.espresso:espresso-core", version.ref = "espresso" }
+
+[plugins]
+android-application = { id = "com.android.application", version.ref = "agp" }
+android-library = { id = "com.android.library", version.ref = "agp" }
+kotlin-android = { id = "org.jetbrains.kotlin.android", version.ref = "kotlin" }
+kotlin-serialization = { id = "org.jetbrains.kotlin.plugin.serialization", version.ref = "kotlin" }
+kotlin-compose = { id = "org.jetbrains.kotlin.plugin.compose", version.ref = "kotlin" }
