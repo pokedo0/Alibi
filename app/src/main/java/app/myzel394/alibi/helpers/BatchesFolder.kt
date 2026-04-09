@@ -268,11 +268,13 @@ abstract class BatchesFolder(
     }
 
     fun deleteRecordings() {
-        // Currently deletes all recordings.
-        // This is fine, because we are saving the recordings
-        // in a dedicated subfolder
+        // Only delete numbered batch files, not merged output files
         when (type) {
-            BatchType.INTERNAL -> getInternalFolder().deleteRecursively()
+            BatchType.INTERNAL -> getInternalFolder().listFiles()?.forEach {
+                if (it.nameWithoutExtension.toIntOrNull() != null) {
+                    it.delete()
+                }
+            }
 
             BatchType.CUSTOM -> customFolder?.findFile(subfolderName)?.delete()
                 ?: customFolder?.findFile(subfolderName)?.listFiles()?.forEach {
