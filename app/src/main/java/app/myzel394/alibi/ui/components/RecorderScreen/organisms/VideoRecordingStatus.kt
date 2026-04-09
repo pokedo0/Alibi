@@ -211,6 +211,7 @@ fun _PrimitiveControls(videoRecorder: VideoRecorderModel) {
                 showConfirmSaveNow = false
 
                 scope.launch {
+                    videoRecorder.recorderService!!.lockFiles()
                     videoRecorder.recorderService!!.startNewCycle()
 
                     videoRecorder.onRecordingSave(false).join()

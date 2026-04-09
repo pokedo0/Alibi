@@ -164,8 +164,14 @@ abstract class BatchesFolder(
         return "$name.$extension"
     }
 
+    /**
+     * Returns the output file in a separate "saved" directory,
+     * isolated from the batches folder to prevent accidental cleanup.
+     */
     fun asInternalGetOutputFile(fileName: String): File {
-        return File(getInternalFolder(), fileName)
+        val savedDir = File(context.filesDir, ".saved_recordings")
+        savedDir.mkdirs()
+        return File(savedDir, fileName)
     }
 
     fun asMediaGetLegacyFile(name: String): File = File(

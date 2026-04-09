@@ -138,6 +138,7 @@ fun _PrimitiveControls(audioRecorder: AudioRecorderModel) {
                 showConfirmSaveNow = false
 
                 scope.launch {
+                    audioRecorder.recorderService!!.lockFiles()
                     audioRecorder.recorderService!!.startNewCycle()
 
                     audioRecorder.onRecordingSave(false).join()
