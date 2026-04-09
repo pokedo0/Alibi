@@ -2,8 +2,7 @@ package app.myzel394.alibi.services
 
 import app.myzel394.alibi.db.AppSettings
 import app.myzel394.alibi.helpers.BatchesFolder
-import java.util.concurrent.Executors
-import java.util.concurrent.ScheduledExecutorService
+import java.util.concurrent.ScheduledFuture
 import java.util.concurrent.TimeUnit
 
 abstract class IntervalRecorderService<I, B : BatchesFolder> :
@@ -16,7 +15,7 @@ abstract class IntervalRecorderService<I, B : BatchesFolder> :
 
     lateinit var settings: AppSettings
 
-    private lateinit var cycleTimer: ScheduledExecutorService
+    private var cycleFuture: ScheduledFuture<*>? = null
 
     abstract var batchesFolder: B
 
@@ -48,14 +47,12 @@ abstract class IntervalRecorderService<I, B : BatchesFolder> :
     }
 
     private fun createTimer() {
-        cycleTimer = Executors.newSingleThreadScheduledExecutor().also {
-            it.scheduleAtFixedRate(
-                ::startNewCycle,
-                0,
-                settings.intervalDuration,
-                TimeUnit.MILLISECONDS
-            )
-        }
+        cycleFuture = sharedExecutor.scheduleAtFixedRate(
+            ::startNewCycle,
+            0,
+            settings.intervalDuration,
+            TimeUnit.MILLISECONDS
+        )
     }
 
     override fun start() {
@@ -74,7 +71,7 @@ abstract class IntervalRecorderService<I, B : BatchesFolder> :
 
     override fun pause() {
         super.pause()
-        cycleTimer.shutdown()
+        cycleFuture?.cancel(false)
     }
 
     override fun resume() {
@@ -83,7 +80,7 @@ abstract class IntervalRecorderService<I, B : BatchesFolder> :
     }
 
     override suspend fun stop() {
-        cycleTimer.shutdown()
+        cycleFuture?.cancel(false)
         batchesFolder.cleanup()
         super.stop()
     }
