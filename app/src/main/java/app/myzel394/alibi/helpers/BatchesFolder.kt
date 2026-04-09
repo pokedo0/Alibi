@@ -254,13 +254,30 @@ abstract class BatchesFolder(
         Log.i("Concatenation", "Concatenating ${inputSources.size} files to $outputPath")
         onProgress(0f)
 
-        NativeMediaConcatenator.concatenateFiles(
-            context = context,
-            inputSources = inputSources,
-            outputPath = outputPath,
-            outputFormat = outputFormat,
-            onProgress = { progress -> onProgress(progress) },
-        )
+        if (outputPath.startsWith("content://")) {
+            // CUSTOM and MEDIA storage use content:// URIs — need FileDescriptor
+            val outputUri = Uri.parse(outputPath)
+            val pfd = context.contentResolver.openFileDescriptor(outputUri, "w")
+                ?: throw NativeMediaConcatenator.ConcatenationException("Cannot open output URI: $outputPath")
+            pfd.use {
+                NativeMediaConcatenator.concatenateFiles(
+                    context = context,
+                    inputSources = inputSources,
+                    outputFd = it.fileDescriptor,
+                    outputFormat = outputFormat,
+                    onProgress = { progress -> onProgress(progress) },
+                )
+            }
+        } else {
+            // INTERNAL storage uses filesystem paths
+            NativeMediaConcatenator.concatenateFiles(
+                context = context,
+                inputSources = inputSources,
+                outputPath = outputPath,
+                outputFormat = outputFormat,
+                onProgress = { progress -> onProgress(progress) },
+            )
+        }
 
         return outputPath
     }
