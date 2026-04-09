@@ -276,23 +276,27 @@ abstract class BatchesFolder(
                 }
             }
 
-            BatchType.CUSTOM -> customFolder?.findFile(subfolderName)?.delete()
-                ?: customFolder?.findFile(subfolderName)?.listFiles()?.forEach {
+            BatchType.CUSTOM -> customFolder?.findFile(subfolderName)?.listFiles()?.forEach {
+                val name = it.name ?: return@forEach
+                val baseName = name.substringBeforeLast(".")
+                if (baseName.toIntOrNull() != null) {
                     it.delete()
                 }
+            }
 
             BatchType.MEDIA -> {
                 if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
-                    // TODO: Also delete pending recordings
-                    // --> Doesn't seem to be possible :/
                     context.contentResolver.delete(
                         scopedMediaContentUri,
                         "${MediaStore.MediaColumns.DISPLAY_NAME} LIKE '$mediaPrefix%'",
                         null,
                     )
-
                 } else {
-                    legacyMediaFolder.deleteRecursively()
+                    legacyMediaFolder.listFiles()?.forEach {
+                        if (it.nameWithoutExtension.substringAfter(mediaPrefix).toIntOrNull() != null) {
+                            it.delete()
+                        }
+                    }
                 }
             }
         }
