@@ -6,6 +6,7 @@ plugins {
 	alias(libs.plugins.kotlin.android)
 	alias(libs.plugins.kotlin.serialization)
 	alias(libs.plugins.kotlin.compose)
+	alias(libs.plugins.ksp)
 }
 
 android {
@@ -30,6 +31,8 @@ android {
 		abi {
 			isEnable = true
 			isUniversalApk = true
+			reset()
+			include("arm64-v8a", "armeabi-v7a", "x86", "x86_64")
 		}
 	}
 
@@ -118,7 +121,7 @@ dependencies {
 	implementation(libs.navigation.compose)
 
 	implementation(libs.hilt.android)
-	annotationProcessor(libs.hilt.compiler)
+	ksp(libs.hilt.compiler)
 	implementation(libs.hilt.navigation.compose)
 
 	coreLibraryDesugaring(libs.desugar.jdk.libs)
