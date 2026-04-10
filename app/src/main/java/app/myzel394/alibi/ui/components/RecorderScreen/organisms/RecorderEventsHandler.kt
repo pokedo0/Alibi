@@ -62,7 +62,6 @@ fun RecorderEventsHandler(
 
     var processingProgress by remember { mutableStateOf<Float?>(null) }
     val activeSaveCount = remember { java.util.concurrent.atomic.AtomicInteger(0) }
-    val saveIdCounter = remember { java.util.concurrent.atomic.AtomicLong(0) }
 
     val saveAudioFile = rememberFileSaverDialog(settings.audioRecorderSettings.getMimeType()) {
         if (settings.deleteRecordingsImmediately) {
@@ -146,22 +145,12 @@ fun RecorderEventsHandler(
         recorder: RecorderModel,
         cleanupOldFiles: Boolean = false
     ): CompletableDeferred<Unit> {
-        val saveId = saveIdCounter.incrementAndGet()
-        val active = activeSaveCount.incrementAndGet()
-        Log.i(
-            "Alibi",
-            "===== saveRecording CALLED #$saveId for ${recorder.javaClass.simpleName} (active=$active)"
-        )
-
         val completer = CompletableDeferred<Unit>()
 
         // Reentrancy guard: if another save is already in flight, drop this
         // invocation to prevent duplicate file creation.
-        if (active > 1) {
-            Log.w(
-                "Alibi",
-                "===== saveRecording #$saveId IGNORED — another save is already in progress"
-            )
+        if (activeSaveCount.incrementAndGet() > 1) {
+            Log.w("RecorderEventsHandler", "saveRecording ignored — another save already in progress")
             activeSaveCount.decrementAndGet()
             completer.complete(Unit)
             return completer
@@ -217,9 +206,7 @@ fun RecorderEventsHandler(
                         )
                     }
 
-                    Log.i("Alibi", "===== saveRecording: foldersToSave.size=${foldersToSave.size}, dualMode=$dualMode")
                     foldersToSave.forEachIndexed { index, folder ->
-                        Log.i("Alibi", "===== saveRecording: processing folder $index (${folder.javaClass.simpleName})")
                         val baseFileName = folder.getName(
                             recording.recordingStart,
                             folder.mergedFileExtension,
@@ -294,7 +281,6 @@ fun RecorderEventsHandler(
                     isProcessing = false
                     processingProgress = null
                     activeSaveCount.decrementAndGet()
-                    Log.i("Alibi", "===== saveRecording #$saveId DONE")
                 }
                 completer.complete(Unit)
             }

@@ -39,7 +39,6 @@ fun rememberFileSaverDialog(
         }
 
     return { it, name ->
-        android.util.Log.i("Alibi", "===== saveFile launched with name=$name, source=${it.absolutePath}")
         file.value = it
         launcher.launch(name ?: it.name)
     }
