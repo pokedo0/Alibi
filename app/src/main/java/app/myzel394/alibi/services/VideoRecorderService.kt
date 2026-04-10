@@ -275,6 +275,10 @@ class VideoRecorderService :
 
                 _cameraAvailableListener.complete(Unit)
             } catch (error: IllegalArgumentException) {
+                // Always unblock awaiters so startNewCycle() doesn't hang
+                if (!_cameraAvailableListener.isCompleted) {
+                    _cameraAvailableListener.completeExceptionally(error)
+                }
                 onError()
             }
         }

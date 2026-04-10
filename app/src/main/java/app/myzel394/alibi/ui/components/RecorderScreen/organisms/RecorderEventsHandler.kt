@@ -234,7 +234,9 @@ fun RecorderEventsHandler(
                         }
                     }
                 } catch (error: Exception) {
-                    Log.getStackTraceString(error)
+                    Log.e("RecorderEventsHandler", "Save recording failed", error)
+                    completer.completeExceptionally(error)
+                    return@runBlocking
                 } finally {
                     if (recorder.isCurrentlyActivelyRecording) {
                         recorder.recorderService?.unlockFiles(cleanupOldFiles)
@@ -242,8 +244,8 @@ fun RecorderEventsHandler(
                     timer.cancel()
                     isProcessing = false
                     processingProgress = null
-                    completer.complete(Unit)
                 }
+                completer.complete(Unit)
             }
         }
 

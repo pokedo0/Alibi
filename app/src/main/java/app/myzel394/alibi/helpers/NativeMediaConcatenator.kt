@@ -6,8 +6,8 @@ import android.media.MediaExtractor
 import android.media.MediaFormat
 import android.media.MediaMuxer
 import android.net.Uri
+import android.os.ParcelFileDescriptor
 import android.util.Log
-import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import java.io.FileDescriptor
@@ -16,6 +16,20 @@ import java.nio.ByteBuffer
 sealed class InputSource {
 	data class FilePath(val path: String) : InputSource()
 	data class ContentUri(val uri: Uri) : InputSource()
+}
+
+/**
+ * Holds a [MediaExtractor] alongside the [ParcelFileDescriptor] that backs it
+ * for content URI sources, so both can be released together.
+ */
+private class ExtractorHandle(
+	val extractor: MediaExtractor,
+	private val pfd: ParcelFileDescriptor? = null,
+) {
+	fun release() {
+		runCatching { extractor.release() }
+		runCatching { pfd?.close() }
+	}
 }
 
 class NativeMediaConcatenator private constructor() {
@@ -48,12 +62,7 @@ class NativeMediaConcatenator private constructor() {
 			}
 
 			val muxer = MediaMuxer(outputPath, outputFormat)
-			try {
-				concatenateInternal(context, inputSources, muxer, onProgress)
-			} finally {
-				runCatching { muxer.stop() }
-				runCatching { muxer.release() }
-			}
+			runConcatenation(context, inputSources, muxer, onProgress)
 		}
 
 		/**
@@ -71,10 +80,28 @@ class NativeMediaConcatenator private constructor() {
 			}
 
 			val muxer = MediaMuxer(outputFd, outputFormat)
+			runConcatenation(context, inputSources, muxer, onProgress)
+		}
+
+		private fun runConcatenation(
+			context: Context,
+			inputSources: List<InputSource>,
+			muxer: MediaMuxer,
+			onProgress: (Float) -> Unit,
+		) {
+			var muxerStarted = false
 			try {
-				concatenateInternal(context, inputSources, muxer, onProgress)
+				concatenateInternal(context, inputSources, muxer, onProgress) {
+					muxerStarted = it
+				}
+			} catch (t: Throwable) {
+				Log.e(TAG, "Concatenation failed", t)
+				throw if (t is ConcatenationException) t
+				else ConcatenationException("Concatenation failed: ${t.message}", t)
 			} finally {
-				runCatching { muxer.stop() }
+				if (muxerStarted) {
+					runCatching { muxer.stop() }
+				}
 				runCatching { muxer.release() }
 			}
 		}
@@ -84,27 +111,28 @@ class NativeMediaConcatenator private constructor() {
 			inputSources: List<InputSource>,
 			muxer: MediaMuxer,
 			onProgress: (Float) -> Unit,
+			onMuxerStarted: (Boolean) -> Unit,
 		) {
 			// Detect tracks from first file
-			val probeExtractor = createExtractor(context, inputSources.first())
-			val trackCount = probeExtractor.trackCount
-			if (trackCount == 0) {
-				probeExtractor.release()
-				throw ConcatenationException("First input file has no tracks")
-			}
+			val probeHandle = createExtractor(context, inputSources.first())
+			val muxerTrackIndices: List<Int>
+			try {
+				val trackCount = probeHandle.extractor.trackCount
+				if (trackCount == 0) {
+					throw ConcatenationException("First input file has no tracks")
+				}
 
-			// Map extractor track indices to muxer track indices
-			val trackFormats = mutableListOf<MediaFormat>()
-			val muxerTrackIndices = mutableListOf<Int>()
-			for (i in 0 until trackCount) {
-				val format = probeExtractor.getTrackFormat(i)
-				trackFormats.add(format)
-				val muxerTrack = muxer.addTrack(format)
-				muxerTrackIndices.add(muxerTrack)
+				// Map extractor track indices to muxer track indices
+				muxerTrackIndices = (0 until trackCount).map { i ->
+					val format = probeHandle.extractor.getTrackFormat(i)
+					muxer.addTrack(format)
+				}
+			} finally {
+				probeHandle.release()
 			}
-			probeExtractor.release()
 
 			muxer.start()
+			onMuxerStarted(true)
 
 			val buffer = ByteBuffer.allocateDirect(BUFFER_SIZE)
 			val bufferInfo = MediaCodec.BufferInfo()
@@ -112,70 +140,104 @@ class NativeMediaConcatenator private constructor() {
 			val totalFiles = inputSources.size
 
 			for ((fileIndex, source) in inputSources.withIndex()) {
-				val extractor = createExtractor(context, source)
-
-				// Select all tracks
-				for (i in 0 until extractor.trackCount) {
-					extractor.selectTrack(i)
+				val handle = try {
+					createExtractor(context, source)
+				} catch (t: Throwable) {
+					Log.w(TAG, "Skipping unreadable input: $source", t)
+					continue
 				}
 
-				var lastSampleTimeUs = 0L
-
-				while (true) {
-					buffer.clear()
-					val sampleSize = extractor.readSampleData(buffer, 0)
-					if (sampleSize < 0) break
-
-					val trackIndex = extractor.sampleTrackIndex
-					if (trackIndex < 0 || trackIndex >= muxerTrackIndices.size) {
-						extractor.advance()
-						continue
+				try {
+					// Select all tracks
+					for (i in 0 until handle.extractor.trackCount) {
+						handle.extractor.selectTrack(i)
 					}
 
-					val sampleTimeUs = extractor.sampleTime
-					val adjustedTimeUs = sampleTimeUs + cumulativeTimeUs
+					var lastSampleTimeUs = 0L
 
-					bufferInfo.apply {
-						offset = 0
-						size = sampleSize
-						presentationTimeUs = adjustedTimeUs
-						flags = extractor.sampleFlags
+					while (true) {
+						buffer.clear()
+						val sampleSize = handle.extractor.readSampleData(buffer, 0)
+						if (sampleSize < 0) break
+
+						val extractorTrackIndex = handle.extractor.sampleTrackIndex
+						if (extractorTrackIndex < 0 || extractorTrackIndex >= muxerTrackIndices.size) {
+							handle.extractor.advance()
+							continue
+						}
+
+						val sampleTimeUs = handle.extractor.sampleTime
+						val adjustedTimeUs = sampleTimeUs + cumulativeTimeUs
+
+						bufferInfo.apply {
+							offset = 0
+							size = sampleSize
+							presentationTimeUs = adjustedTimeUs
+							flags = handle.extractor.sampleFlags
+						}
+
+						try {
+							muxer.writeSampleData(
+								muxerTrackIndices[extractorTrackIndex],
+								buffer,
+								bufferInfo,
+							)
+						} catch (t: IllegalStateException) {
+							// Muxer rejected the sample (e.g. non-monotonic timestamp).
+							// Log and keep going to salvage as much as possible.
+							Log.w(TAG, "Muxer rejected sample at $adjustedTimeUs us", t)
+						}
+
+						if (sampleTimeUs > lastSampleTimeUs) {
+							lastSampleTimeUs = sampleTimeUs
+						}
+
+						handle.extractor.advance()
 					}
 
-					muxer.writeSampleData(muxerTrackIndices[trackIndex], buffer, bufferInfo)
-
-					if (sampleTimeUs > lastSampleTimeUs) {
-						lastSampleTimeUs = sampleTimeUs
-					}
-
-					extractor.advance()
+					// Offset next file's timestamps by this file's duration.
+					// Add a 1ms gap so the first sample of the next file doesn't
+					// collide with the last sample of the previous one.
+					cumulativeTimeUs += lastSampleTimeUs + 1000
+				} finally {
+					handle.release()
 				}
 
-				// Offset next file's timestamps by this file's duration
-				// Add a small gap (1000 µs = 1ms) to avoid timestamp collisions
-				cumulativeTimeUs += lastSampleTimeUs + 1000
-
-				extractor.release()
-
-				// Report progress per file
 				onProgress((fileIndex + 1).toFloat() / totalFiles)
 			}
 
-			Log.i(TAG, "Concatenation complete: $totalFiles files, ${cumulativeTimeUs / 1_000_000}s total")
+			Log.i(
+				TAG,
+				"Concatenation complete: $totalFiles files, ${cumulativeTimeUs / 1_000_000}s total",
+			)
 		}
 
-		private fun createExtractor(context: Context, source: InputSource): MediaExtractor {
+		private fun createExtractor(context: Context, source: InputSource): ExtractorHandle {
 			val extractor = MediaExtractor()
-			when (source) {
-				is InputSource.FilePath -> extractor.setDataSource(source.path)
-				is InputSource.ContentUri -> {
-					val pfd = context.contentResolver.openFileDescriptor(source.uri, "r")
-						?: throw ConcatenationException("Cannot open URI: ${source.uri}")
-					extractor.setDataSource(pfd.fileDescriptor)
-					pfd.close()
+			return try {
+				when (source) {
+					is InputSource.FilePath -> {
+						extractor.setDataSource(source.path)
+						ExtractorHandle(extractor)
+					}
+
+					is InputSource.ContentUri -> {
+						val pfd = context.contentResolver.openFileDescriptor(source.uri, "r")
+							?: throw ConcatenationException("Cannot open URI: ${source.uri}")
+						try {
+							extractor.setDataSource(pfd.fileDescriptor)
+						} catch (t: Throwable) {
+							runCatching { pfd.close() }
+							throw t
+						}
+						// Keep the PFD alive for the extractor's lifetime.
+						ExtractorHandle(extractor, pfd)
+					}
 				}
+			} catch (t: Throwable) {
+				runCatching { extractor.release() }
+				throw t
 			}
-			return extractor
 		}
 
 		/**

@@ -45,23 +45,29 @@ fun AudioRecorderEncoderTile(
 
     fun updateValue(encoder: Int?) {
         scope.launch {
-            val isCompatible = if (encoder == null || encoder == MediaRecorder.AudioEncoder.DEFAULT)
-                true
-            else settings.audioRecorderSettings.isEncoderCompatible(encoder)
+            var resetOutputFormat = false
+            runCatching {
+                dataStore.updateData { current ->
+                    val isCompatible =
+                        if (encoder == null || encoder == MediaRecorder.AudioEncoder.DEFAULT) true
+                        else current.audioRecorderSettings.isEncoderCompatible(encoder)
 
-            dataStore.updateData {
-                it.setAudioRecorderSettings(
-                    it.audioRecorderSettings.setEncoder(encoder)
-                )
+                    val updatedAudio = if (isCompatible) {
+                        current.audioRecorderSettings.setEncoder(encoder)
+                    } else {
+                        resetOutputFormat = true
+                        current.audioRecorderSettings
+                            .setEncoder(encoder)
+                            .setOutputFormat(null)
+                    }
+                    current.setAudioRecorderSettings(updatedAudio)
+                }
+            }.onFailure {
+                android.util.Log.e("AudioRecorderEncoderTile", "Failed to update encoder", it)
+                return@launch
             }
 
-            if (!isCompatible) {
-                dataStore.updateData {
-                    it.setAudioRecorderSettings(
-                        it.audioRecorderSettings.setOutputFormat(null)
-                    )
-                }
-
+            if (resetOutputFormat) {
                 snackbarHostState.showSnackbar(
                     message = updatedOutputFormatLabel,
                     withDismissAction = true,

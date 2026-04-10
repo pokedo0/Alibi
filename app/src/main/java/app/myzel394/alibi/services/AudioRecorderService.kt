@@ -53,6 +53,9 @@ class AudioRecorderService :
             recorder = newRecorder
             newRecorder.start()
         } catch (error: RuntimeException) {
+            // Release the leaked recorder before bailing out.
+            runCatching { newRecorder.release() }
+            if (recorder === newRecorder) recorder = null
             onError()
         }
     }

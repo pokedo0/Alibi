@@ -55,13 +55,25 @@ fun ImportExport(
     val saveFile = rememberFileSaverDialog("application/json")
     val openFile = rememberFileSelectorDialog { uri ->
         val file = File.createTempFile("alibi_settings", ".json")
+        try {
+            context.contentResolver.openInputStream(uri)?.use { input ->
+                file.outputStream().use { output ->
+                    input.copyTo(output)
+                }
+            } ?: throw Exception("Cannot open settings file")
 
-        context.contentResolver.openInputStream(uri)!!.use {
-            it.copyTo(file.outputStream())
+            val rawContent = file.readText()
+            settingsToBeImported = AppSettings.fromExportedString(rawContent)
+        } catch (error: Exception) {
+            android.util.Log.e("ImportExport", "Failed to import settings", error)
+            scope.launch {
+                snackbarHostState.showSnackbar(
+                    message = "Failed to import settings: ${error.message ?: "invalid file"}"
+                )
+            }
+        } finally {
+            runCatching { file.delete() }
         }
-        val rawContent = file.readText()
-
-        settingsToBeImported = AppSettings.fromExportedString(rawContent)
     }
 
     if (settingsToBeImported != null) {

@@ -572,23 +572,13 @@ abstract class BatchesFolder(
         }
 
         fun canAccessFolder(context: Context, uri: Uri): Boolean {
-            // This always returns false for some reason, let's just assume it's true
-            return true
-            /*
             return try {
-                // Create temp file
-                val docFile = DocumentFile.fromSingleUri(context, uri)!!
-
-                return docFile.canWrite().also {
-                    println("Can write? ${it}")
-                } && docFile.canRead().also {
-                    println("Can read? ${it}")
-                }
+                val docFile = DocumentFile.fromTreeUri(context, uri) ?: return false
+                docFile.exists() && docFile.canWrite() && docFile.canRead()
             } catch (error: RuntimeException) {
-                error.printStackTrace()
+                android.util.Log.w("BatchesFolder", "canAccessFolder failed", error)
                 false
             }
-             */
         }
     }
 }
