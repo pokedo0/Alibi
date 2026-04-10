@@ -46,7 +46,12 @@ class AudioRecorderService :
             it.prepare()
         }
 
+        // resetRecorder() synchronously stops + releases the previous MediaRecorder,
+        // so the previous batch file is fully written and flushed by the time it
+        // returns. That makes it safe to delete expired batches here.
         resetRecorder()
+        runCatching { cleanupExpiredBatches() }
+
         startAudioDevice()
 
         try {

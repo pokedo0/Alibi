@@ -43,7 +43,6 @@ abstract class IntervalRecorderService<I, B : BatchesFolder> :
     // Make overrideable
     open fun startNewCycle() {
         counter += 1
-        deleteOldRecordings()
     }
 
     private fun createTimer() {
@@ -89,14 +88,36 @@ abstract class IntervalRecorderService<I, B : BatchesFolder> :
         batchesFolder.deleteRecordings()
     }
 
-    private fun deleteOldRecordings() {
+    /**
+     * Deletes batch files that exceed the configured [AppSettings.maxDuration] window.
+     *
+     * MUST be called after the previous batch recording has been finalized
+     * (stopped and its file fully written to disk). Calling this while a
+     * recorder still has the file open causes [java.io.File.delete] to
+     * silently fail on some Android versions, leaking old batches into
+     * subsequent save operations.
+     *
+     * Subclasses that own multiple batches folders should override to
+     * clean up each one.
+     */
+    protected open fun cleanupExpiredBatches() {
+        val cutoff = computeExpiredBatchCutoff() ?: return
+        batchesFolder.deleteRecordings(0..cutoff)
+    }
+
+    /**
+     * Computes the highest batch counter to delete (inclusive) based on
+     * [AppSettings.maxDuration] / [AppSettings.intervalDuration] and the
+     * currently locked index. Returns null if nothing should be deleted.
+     */
+    protected fun computeExpiredBatchCutoff(): Long? {
         val timeMultiplier = settings.maxDuration / settings.intervalDuration
-        val earliestCounter = Math.max(counter - timeMultiplier, lockedIndex ?: 0)
+        val normalCutoff = counter - timeMultiplier
 
-        if (earliestCounter <= 0) {
-            return
-        }
+        // If a save is in progress the locked batch must not be deleted.
+        // Clamp the cutoff so it stays strictly below the locked index.
+        val cutoff = lockedIndex?.let { minOf(normalCutoff, it - 1) } ?: normalCutoff
 
-        batchesFolder.deleteRecordings(0..earliestCounter)
+        return if (cutoff <= 0) null else cutoff
     }
 }

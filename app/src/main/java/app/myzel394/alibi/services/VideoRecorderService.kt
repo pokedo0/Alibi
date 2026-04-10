@@ -213,6 +213,7 @@ class VideoRecorderService :
         // The currently-active finalizer belongs to the recording we're
         // about to stop. Save it so save flows can await it.
         stream.previousRecordingFinalizer = stream.activeRecordingFinalizer
+        val finalizerForStoppedRecording = stream.activeRecordingFinalizer
 
         runCatching { stream.activeRecording?.stop() }
 
@@ -237,6 +238,18 @@ class VideoRecorderService :
                     }
                 }
             }
+
+        // After the PREVIOUS batch has finalized (its file is fully written),
+        // it is finally safe to run the expired-batches cleanup. Running the
+        // cleanup inside startNewCycle (before the recorder flushes) caused
+        // File.delete() to silently fail on many Android versions, leaving
+        // expired batches on disk and leaking into save flows.
+        finalizerForStoppedRecording?.let { deferred ->
+            scope.launch {
+                runCatching { deferred.await() }
+                runCatching { cleanupExpiredBatches() }
+            }
+        }
     }
 
 
@@ -485,6 +498,17 @@ class VideoRecorderService :
         )
 
     fun isDualCameraActive(): Boolean = isDualMode
+
+    /**
+     * Also cleans up the secondary dual-camera batches folder, if present.
+     */
+    override fun cleanupExpiredBatches() {
+        super.cleanupExpiredBatches()
+        secondaryBatchesFolder?.let { folder ->
+            val cutoff = computeExpiredBatchCutoff() ?: return
+            folder.deleteRecordings(0..cutoff)
+        }
+    }
 
     companion object {
         private const val TAG = "VideoRecorderService"
