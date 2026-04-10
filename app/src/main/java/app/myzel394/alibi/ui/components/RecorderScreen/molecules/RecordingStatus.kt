@@ -85,7 +85,7 @@ fun RecordingStatus(
             Text(
                 text = stringResource(
                     R.string.ui_recorder_info_saveNowTime,
-                    DateTimeFormatter.ofLocalizedDateTime(FormatStyle.MEDIUM, FormatStyle.SHORT)
+                    DateTimeFormatter.ofLocalizedDateTime(FormatStyle.MEDIUM, FormatStyle.MEDIUM)
                         .format(
                             LocalDateTime.now().minusSeconds(
                                 min(
@@ -106,7 +106,7 @@ fun RecordingStatus(
                     if (isSameDay(it, LocalDateTime.now())) {
                         stringResource(
                             R.string.ui_recorder_info_startTime_short,
-                            DateTimeFormatter.ofLocalizedTime(FormatStyle.SHORT)
+                            DateTimeFormatter.ofLocalizedTime(FormatStyle.MEDIUM)
                                 .format(it)
                         )
                     } else {
@@ -114,7 +114,7 @@ fun RecordingStatus(
                             R.string.ui_recorder_info_startTime_full,
                             DateTimeFormatter.ofLocalizedDateTime(
                                 FormatStyle.MEDIUM,
-                                FormatStyle.SHORT
+                                FormatStyle.MEDIUM
                             )
                                 .format(it)
                         )
