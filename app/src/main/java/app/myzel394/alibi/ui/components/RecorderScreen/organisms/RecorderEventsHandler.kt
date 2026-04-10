@@ -61,6 +61,8 @@ fun RecorderEventsHandler(
     var showBatchesInaccessibleError by remember { mutableStateOf(false) }
 
     var processingProgress by remember { mutableStateOf<Float?>(null) }
+    val activeSaveCount = remember { java.util.concurrent.atomic.AtomicInteger(0) }
+    val saveIdCounter = remember { java.util.concurrent.atomic.AtomicLong(0) }
 
     val saveAudioFile = rememberFileSaverDialog(settings.audioRecorderSettings.getMimeType()) {
         if (settings.deleteRecordingsImmediately) {
@@ -144,8 +146,26 @@ fun RecorderEventsHandler(
         recorder: RecorderModel,
         cleanupOldFiles: Boolean = false
     ): CompletableDeferred<Unit> {
-        Log.i("Alibi", "===== saveRecording CALLED for ${recorder.javaClass.simpleName}")
+        val saveId = saveIdCounter.incrementAndGet()
+        val active = activeSaveCount.incrementAndGet()
+        Log.i(
+            "Alibi",
+            "===== saveRecording CALLED #$saveId for ${recorder.javaClass.simpleName} (active=$active)"
+        )
+
         val completer = CompletableDeferred<Unit>()
+
+        // Reentrancy guard: if another save is already in flight, drop this
+        // invocation to prevent duplicate file creation.
+        if (active > 1) {
+            Log.w(
+                "Alibi",
+                "===== saveRecording #$saveId IGNORED — another save is already in progress"
+            )
+            activeSaveCount.decrementAndGet()
+            completer.complete(Unit)
+            return completer
+        }
 
         // If processing takes this short, don't show the processing dialog
         val timer = Timer().schedule(250L) {
@@ -273,6 +293,8 @@ fun RecorderEventsHandler(
                     timer.cancel()
                     isProcessing = false
                     processingProgress = null
+                    activeSaveCount.decrementAndGet()
+                    Log.i("Alibi", "===== saveRecording #$saveId DONE")
                 }
                 completer.complete(Unit)
             }

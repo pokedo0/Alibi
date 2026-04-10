@@ -115,10 +115,24 @@ abstract class IntervalRecorderService<I, B : BatchesFolder> :
      * Computes the highest batch counter to delete (inclusive) based on
      * [AppSettings.maxDuration] / [AppSettings.intervalDuration] and the
      * currently locked index. Returns null if nothing should be deleted.
+     *
+     * Keeps one EXTRA completed batch beyond what timeMultiplier alone
+     * would suggest. Without this, at the start of a new cycle the buffer
+     * would contain only the freshly-started (partial) batch plus
+     * timeMultiplier-1 older completed batches, so the effective minimum
+     * rolling window would be `(timeMultiplier - 1) * intervalDuration`,
+     * which on the default 60s/60s settings works out to 0 seconds.
+     *
+     * By keeping the extra batch we guarantee at least `maxDuration`
+     * worth of content is available at every moment, at the cost of
+     * occasionally saving up to `maxDuration + intervalDuration` seconds.
      */
     protected fun computeExpiredBatchCutoff(): Long? {
         val timeMultiplier = settings.maxDuration / settings.intervalDuration
-        val normalCutoff = counter - timeMultiplier
+        // Keep `timeMultiplier + 1` batches (current in-progress + timeMultiplier
+        // completed). This ensures the rolling window is never smaller than
+        // `maxDuration` seconds.
+        val normalCutoff = counter - timeMultiplier - 1
 
         // If a save is in progress the locked batch must not be deleted.
         // Clamp the cutoff so it stays strictly below the locked index.
