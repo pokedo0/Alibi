@@ -22,6 +22,7 @@ import app.myzel394.alibi.helpers.AudioBatchesFolder
 import app.myzel394.alibi.helpers.BatchesFolder
 import app.myzel394.alibi.helpers.VideoBatchesFolder
 import app.myzel394.alibi.services.IntervalRecorderService
+import app.myzel394.alibi.services.VideoRecorderService
 import app.myzel394.alibi.ui.components.RecorderScreen.atoms.BatchesInaccessibleDialog
 import app.myzel394.alibi.ui.components.RecorderScreen.atoms.RecorderErrorDialog
 import app.myzel394.alibi.ui.components.RecorderScreen.atoms.RecorderProcessingDialog
@@ -155,6 +156,13 @@ fun RecorderEventsHandler(
                     if (recorder.isCurrentlyActivelyRecording) {
                         recorder.recorderService?.lockFiles()
                     }
+
+                    // Wait for the most recently stopped video batch to be fully
+                    // finalized (MP4 moov atom written) before reading batch files.
+                    // Without this, the latest batch may be partially written and
+                    // MediaExtractor will read only a fraction of the content.
+                    (recorder.recorderService as? VideoRecorderService)
+                        ?.awaitPreviousBatchFinalization()
 
                     val recording =
                         // When new recording created

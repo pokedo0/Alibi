@@ -40,14 +40,20 @@ fun MaxDurationTile(
 
     fun updateValue(maxDuration: Long) {
         scope.launch {
-            if (maxDuration < settings.intervalDuration) {
-                dataStore.updateData {
-                    it.setIntervalDuration(maxDuration)
+            runCatching {
+                dataStore.updateData { current ->
+                    // Apply both changes atomically to avoid constraint violations
+                    val adjustedInterval = if (maxDuration < current.intervalDuration) {
+                        maxDuration
+                    } else {
+                        current.intervalDuration
+                    }
+                    current
+                        .copy(intervalDuration = adjustedInterval)
+                        .setMaxDuration(maxDuration)
                 }
-            }
-
-            dataStore.updateData {
-                it.setMaxDuration(maxDuration)
+            }.onFailure {
+                android.util.Log.e("MaxDurationTile", "Failed to update max duration", it)
             }
         }
     }

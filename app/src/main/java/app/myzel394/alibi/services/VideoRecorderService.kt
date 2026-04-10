@@ -53,7 +53,17 @@ class VideoRecorderService :
 
     // Used to listen and check if the camera is available
     private var _cameraAvailableListener = CompletableDeferred<Unit>()
-    private lateinit var _videoFinalizerListener: CompletableDeferred<Unit>;
+    private lateinit var _videoFinalizerListener: CompletableDeferred<Unit>
+
+    // Finalizer for the currently active recording. Set when a recording starts,
+    // completed when that recording receives its Finalize event.
+    @Volatile
+    private var activeRecordingFinalizer: CompletableDeferred<Unit>? = null
+
+    // Finalizer for the most recently stopped recording.
+    // Await this before reading batch files to ensure the last batch is fully written.
+    @Volatile
+    private var previousRecordingFinalizer: CompletableDeferred<Unit>? = null
 
     // Absolute last completer that can be awaited to ensure that the camera is closed
     private var _cameraCloserListener = CompletableDeferred<Unit>()
@@ -142,19 +152,46 @@ class VideoRecorderService :
         )
     }
 
+    /**
+     * Awaits finalization of the most recently stopped batch recording.
+     * Call this before reading batch files for concatenation to ensure
+     * the last batch's MP4 moov atom has been written to disk.
+     */
+    suspend fun awaitPreviousBatchFinalization() {
+        withTimeoutOrNull(CAMERA_CLOSE_TIMEOUT) {
+            previousRecordingFinalizer?.await()
+        }
+    }
+
     @SuppressLint("MissingPermission")
     override fun startNewCycle() {
         super.startNewCycle()
 
         fun action() {
+            // The currently-active finalizer belongs to the recording we're
+            // about to stop. Save it as the "previous" one so save flows
+            // can await it.
+            previousRecordingFinalizer = activeRecordingFinalizer
+
             stopActiveRecording()
+
+            // Create a new finalizer for the new recording. The listener
+            // captures it via closure, so it survives even when the instance
+            // field is later reassigned on the next cycle.
+            val newFinalizer = CompletableDeferred<Unit>()
+            activeRecordingFinalizer = newFinalizer
+
             val newRecording = prepareVideoRecording()
 
             _videoFinalizerListener = CompletableDeferred()
 
             activeRecording = newRecording.start(ContextCompat.getMainExecutor(this)) { event ->
-                if (event is VideoRecordEvent.Finalize && (this@VideoRecorderService.state == RecorderState.STOPPED || this@VideoRecorderService.state == RecorderState.PAUSED)) {
-                    _videoFinalizerListener.complete(Unit)
+                if (event is VideoRecordEvent.Finalize) {
+                    newFinalizer.complete(Unit)
+                    if (this@VideoRecorderService.state == RecorderState.STOPPED ||
+                        this@VideoRecorderService.state == RecorderState.PAUSED) {
+                        _videoFinalizerListener.complete(Unit)
+                    }
                 }
             }
         }
