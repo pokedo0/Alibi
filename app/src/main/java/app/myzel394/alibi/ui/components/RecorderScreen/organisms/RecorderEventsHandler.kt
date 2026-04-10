@@ -20,6 +20,7 @@ import app.myzel394.alibi.db.AppSettings
 import app.myzel394.alibi.db.RecordingInformation
 import app.myzel394.alibi.helpers.AudioBatchesFolder
 import app.myzel394.alibi.helpers.BatchesFolder
+import app.myzel394.alibi.helpers.CameraPosition
 import app.myzel394.alibi.helpers.VideoBatchesFolder
 import app.myzel394.alibi.services.IntervalRecorderService
 import app.myzel394.alibi.services.VideoRecorderService
@@ -171,65 +172,90 @@ fun RecorderEventsHandler(
                             ?: settings.lastRecording
                             ?: throw Exception("No recording information available")
 
-                    val batchesFolder = when (recorder.javaClass) {
-                        AudioRecorderModel::class.java -> AudioBatchesFolder.importFromFolder(
-                            recording.folderPath,
-                            context
-                        )
+                    val isVideoRecorder = recorder.javaClass == VideoRecorderModel::class.java
+                    val dualMode = isVideoRecorder &&
+                        settings.videoRecorderSettings.dualCameraEnabled
 
-                        VideoRecorderModel::class.java -> VideoBatchesFolder.importFromFolder(
-                            recording.folderPath,
-                            context
+                    // Build the list of folders to process.
+                    // Single-camera audio/video: one folder.
+                    // Dual camera: two folders (back + front).
+                    val foldersToSave: List<BatchesFolder> = when {
+                        !isVideoRecorder -> listOf(
+                            AudioBatchesFolder.importFromFolder(recording.folderPath, context)
                         )
-
-                        else -> throw Exception("Unknown recorder type")
+                        dualMode -> listOf(
+                            VideoBatchesFolder.importFromFolder(
+                                recording.folderPath, context, CameraPosition.BACK,
+                            ),
+                            VideoBatchesFolder.importFromFolder(
+                                recording.folderPath, context, CameraPosition.FRONT,
+                            ),
+                        )
+                        else -> listOf(
+                            VideoBatchesFolder.importFromFolder(recording.folderPath, context)
+                        )
                     }
 
-                    val fileName = batchesFolder.getName(
-                        recording.recordingStart,
-                        batchesFolder.mergedFileExtension,
-                    )
-
-                    batchesFolder.concatenate(
-                        recording,
-                        filenameFormat = settings.filenameFormat,
-                        fileName = fileName,
-                        onProgress = { percentage ->
-                            processingProgress = percentage
+                    foldersToSave.forEachIndexed { index, folder ->
+                        val baseFileName = folder.getName(
+                            recording.recordingStart,
+                            folder.mergedFileExtension,
+                        )
+                        // For dual mode, tag the filename with back/front
+                        val fileName = if (dualMode && folder is VideoBatchesFolder) {
+                            val tag = folder.cameraPosition.fileTag
+                            baseFileName.substringBeforeLast(".")
+                                .plus("_$tag.")
+                                .plus(folder.mergedFileExtension)
+                        } else {
+                            baseFileName
                         }
-                    )
 
-                    // Save file
-                    when (batchesFolder.type) {
-                        BatchesFolder.BatchType.INTERNAL -> {
-                            when (batchesFolder) {
-                                is AudioBatchesFolder -> {
-                                    saveAudioFile(
-                                        batchesFolder.asInternalGetOutputFile(fileName), fileName
-                                    )
-                                }
-
-                                is VideoBatchesFolder -> {
-                                    saveVideoFile(
-                                        batchesFolder.asInternalGetOutputFile(fileName), fileName
-                                    )
+                        folder.concatenate(
+                            recording,
+                            filenameFormat = settings.filenameFormat,
+                            fileName = fileName,
+                            onProgress = { percentage ->
+                                // Total progress across all folders
+                                val base = index.toFloat() / foldersToSave.size
+                                processingProgress = percentage?.let {
+                                    base + (it / foldersToSave.size)
                                 }
                             }
-                        }
+                        )
 
-                        BatchesFolder.BatchType.CUSTOM -> {
-                            showSnackbar(batchesFolder.customFolder!!.uri)
+                        // Save file
+                        when (folder.type) {
+                            BatchesFolder.BatchType.INTERNAL -> {
+                                when (folder) {
+                                    is AudioBatchesFolder -> {
+                                        saveAudioFile(
+                                            folder.asInternalGetOutputFile(fileName), fileName
+                                        )
+                                    }
 
-                            if (settings.deleteRecordingsImmediately) {
-                                batchesFolder.deleteRecordings()
+                                    is VideoBatchesFolder -> {
+                                        saveVideoFile(
+                                            folder.asInternalGetOutputFile(fileName), fileName
+                                        )
+                                    }
+                                }
                             }
-                        }
 
-                        BatchesFolder.BatchType.MEDIA -> {
-                            showSnackbar()
+                            BatchesFolder.BatchType.CUSTOM -> {
+                                showSnackbar(folder.customFolder!!.uri)
 
-                            if (settings.deleteRecordingsImmediately) {
-                                batchesFolder.deleteRecordings()
+                                if (settings.deleteRecordingsImmediately) {
+                                    folder.deleteRecordings()
+                                }
+                            }
+
+                            BatchesFolder.BatchType.MEDIA -> {
+                                showSnackbar()
+
+                                if (settings.deleteRecordingsImmediately) {
+                                    folder.deleteRecordings()
+                                }
                             }
                         }
                     }

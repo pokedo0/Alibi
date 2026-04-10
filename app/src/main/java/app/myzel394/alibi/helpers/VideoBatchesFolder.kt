@@ -16,11 +16,22 @@ import app.myzel394.alibi.ui.VIDEO_RECORDING_BATCHES_SUBFOLDER_NAME
 import java.io.File
 import java.time.LocalDateTime
 
+/**
+ * Identifies which camera position a [VideoBatchesFolder] belongs to.
+ * Used to keep dual-camera recordings in separate subfolders.
+ */
+enum class CameraPosition(val folderSuffix: String, val fileTag: String) {
+	SINGLE("", ""),
+	BACK("_back", "back"),
+	FRONT("_front", "front"),
+}
+
 class VideoBatchesFolder(
 	override val context: Context,
 	override val type: BatchType,
 	override val customFolder: DocumentFile? = null,
-	override val subfolderName: String = VIDEO_RECORDING_BATCHES_SUBFOLDER_NAME,
+	val cameraPosition: CameraPosition = CameraPosition.SINGLE,
+	override val subfolderName: String = VIDEO_RECORDING_BATCHES_SUBFOLDER_NAME + cameraPosition.folderSuffix,
 ) : BatchesFolder(
 	context,
 	type,
@@ -103,20 +114,47 @@ class VideoBatchesFolder(
 	}
 
 	companion object {
-		fun viaInternalFolder(context: Context) = VideoBatchesFolder(context, BatchType.INTERNAL)
+		fun viaInternalFolder(
+			context: Context,
+			cameraPosition: CameraPosition = CameraPosition.SINGLE,
+		) = VideoBatchesFolder(
+			context = context,
+			type = BatchType.INTERNAL,
+			cameraPosition = cameraPosition,
+		)
 
-		fun viaCustomFolder(context: Context, folder: DocumentFile) =
-			VideoBatchesFolder(context, BatchType.CUSTOM, folder)
+		fun viaCustomFolder(
+			context: Context,
+			folder: DocumentFile,
+			cameraPosition: CameraPosition = CameraPosition.SINGLE,
+		) = VideoBatchesFolder(
+			context = context,
+			type = BatchType.CUSTOM,
+			customFolder = folder,
+			cameraPosition = cameraPosition,
+		)
 
-		fun viaMediaFolder(context: Context) = VideoBatchesFolder(context, BatchType.MEDIA)
+		fun viaMediaFolder(
+			context: Context,
+			cameraPosition: CameraPosition = CameraPosition.SINGLE,
+		) = VideoBatchesFolder(
+			context = context,
+			type = BatchType.MEDIA,
+			cameraPosition = cameraPosition,
+		)
 
-		fun importFromFolder(folder: String?, context: Context) = when (folder) {
-			null -> viaInternalFolder(context)
-			RECORDER_INTERNAL_SELECTED_VALUE -> viaInternalFolder(context)
-			RECORDER_MEDIA_SELECTED_VALUE -> viaMediaFolder(context)
+		fun importFromFolder(
+			folder: String?,
+			context: Context,
+			cameraPosition: CameraPosition = CameraPosition.SINGLE,
+		) = when (folder) {
+			null -> viaInternalFolder(context, cameraPosition)
+			RECORDER_INTERNAL_SELECTED_VALUE -> viaInternalFolder(context, cameraPosition)
+			RECORDER_MEDIA_SELECTED_VALUE -> viaMediaFolder(context, cameraPosition)
 			else -> viaCustomFolder(
 				context,
-				DocumentFile.fromTreeUri(context, Uri.parse(folder))!!
+				DocumentFile.fromTreeUri(context, Uri.parse(folder))!!,
+				cameraPosition,
 			)
 		}
 

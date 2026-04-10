@@ -11,7 +11,7 @@ plugins {
 
 android {
 	namespace = "app.myzel394.alibi"
-	compileSdk = 35
+	compileSdk = 36
 
 	val keystoreProperties = Properties()
 	val keystorePropertiesFile = rootProject.file("key.properties")
@@ -40,9 +40,9 @@ android {
 		multiDexEnabled = true
 		applicationId = "app.myzel394.alibi"
 		minSdk = 24
-		targetSdk = 35
-		versionCode = 17
-		versionName = "0.6.0"
+		targetSdk = 36
+		versionCode = 18
+		versionName = "0.7.0"
 
 		testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
 		vectorDrawables {
@@ -141,6 +141,8 @@ dependencies {
 	implementation(libs.camerax.video)
 	implementation(libs.camerax.view)
 	implementation(libs.camerax.extensions)
+	implementation(libs.guava)
+	implementation(libs.kotlinx.coroutines.guava)
 
 	implementation(libs.shimmer)
 

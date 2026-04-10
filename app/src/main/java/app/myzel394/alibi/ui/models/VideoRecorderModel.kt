@@ -13,6 +13,7 @@ import app.myzel394.alibi.db.AppSettings
 import app.myzel394.alibi.db.RecordingInformation
 import app.myzel394.alibi.enums.RecorderState
 import app.myzel394.alibi.helpers.Doctor
+import app.myzel394.alibi.helpers.CameraPosition
 import app.myzel394.alibi.helpers.VideoBatchesFolder
 import app.myzel394.alibi.services.VideoRecorderService
 import app.myzel394.alibi.ui.RECORDER_MEDIA_SELECTED_VALUE
@@ -52,19 +53,30 @@ class VideoRecorderModel :
 	}
 
 	override fun startRecording(context: Context, settings: AppSettings) {
-		batchesFolder = when (settings.saveFolder) {
-			null -> VideoBatchesFolder.viaInternalFolder(context)
-			RECORDER_MEDIA_SELECTED_VALUE -> VideoBatchesFolder.viaMediaFolder(context)
-			else -> VideoBatchesFolder.viaCustomFolder(
-				context,
-				DocumentFile.fromTreeUri(
-					context,
-					Uri.parse(settings.saveFolder)
-				)!!
-			)
-		}
+		val dualMode = settings.videoRecorderSettings.dualCameraEnabled
+		val primaryPosition =
+			if (dualMode) CameraPosition.BACK else CameraPosition.SINGLE
+
+		batchesFolder = createBatchesFolder(context, settings, primaryPosition)
 
 		super.startRecording(context, settings)
+	}
+
+	private fun createBatchesFolder(
+		context: Context,
+		settings: AppSettings,
+		position: CameraPosition,
+	): VideoBatchesFolder = when (settings.saveFolder) {
+		null -> VideoBatchesFolder.viaInternalFolder(context, position)
+		RECORDER_MEDIA_SELECTED_VALUE -> VideoBatchesFolder.viaMediaFolder(context, position)
+		else -> VideoBatchesFolder.viaCustomFolder(
+			context,
+			DocumentFile.fromTreeUri(
+				context,
+				Uri.parse(settings.saveFolder)
+			)!!,
+			position,
+		)
 	}
 
 	override fun onServiceConnected(service: VideoRecorderService) {
@@ -73,6 +85,19 @@ class VideoRecorderModel :
 		// not already recording
 		if (service.state == RecorderState.IDLE) {
 			isStartingRecording = true
+
+			// For dual camera mode, create and attach the secondary (front) folder
+			settings?.let { appSettings ->
+				if (appSettings.videoRecorderSettings.dualCameraEnabled) {
+					service.secondaryBatchesFolder = createBatchesFolder(
+						context = service,
+						settings = appSettings,
+						position = CameraPosition.FRONT,
+					).also { it.initFolders() }
+				} else {
+					service.secondaryBatchesFolder = null
+				}
+			}
 
 			service.clearAllRecordings()
 			service.startRecording()

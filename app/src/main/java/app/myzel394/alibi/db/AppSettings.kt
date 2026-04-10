@@ -451,6 +451,7 @@ data class VideoRecorderSettings(
     val quality: String? = null,
     val targetFrameRate: Int? = null,
     val preferredCameraId: String? = null,
+    val dualCameraEnabled: Boolean = false,
 ) {
     fun setTargetedVideoBitRate(bitRate: Int?): VideoRecorderSettings {
         return copy(targetedVideoBitRate = bitRate)
@@ -468,6 +469,10 @@ data class VideoRecorderSettings(
 
     fun setPreferredCameraId(cameraId: String?): VideoRecorderSettings {
         return copy(preferredCameraId = cameraId)
+    }
+
+    fun setDualCameraEnabled(enabled: Boolean): VideoRecorderSettings {
+        return copy(dualCameraEnabled = enabled)
     }
 
     fun getQuality(): Quality? =

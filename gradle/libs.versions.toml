@@ -17,7 +17,8 @@ desugar = "2.1.5"
 datastore = "1.1.7"
 serialization-json = "1.7.3"
 sheets-compose = "1.2.0"
-camerax = "1.4.2"
+camerax = "1.6.0"
+guava = "33.4.0-android"
 shimmer = "1.2.0"
 biometric = "1.2.0-alpha05"
 junit = "4.13.2"
@@ -58,6 +59,8 @@ camerax-lifecycle = { module = "androidx.camera:camera-lifecycle", version.ref =
 camerax-video = { module = "androidx.camera:camera-video", version.ref = "camerax" }
 camerax-view = { module = "androidx.camera:camera-view", version.ref = "camerax" }
 camerax-extensions = { module = "androidx.camera:camera-extensions", version.ref = "camerax" }
+guava = { module = "com.google.guava:guava", version.ref = "guava" }
+kotlinx-coroutines-guava = { module = "org.jetbrains.kotlinx:kotlinx-coroutines-guava", version = "1.9.0" }
 shimmer = { module = "com.valentinilk.shimmer:compose-shimmer", version.ref = "shimmer" }
 biometric-ktx = { module = "androidx.biometric:biometric-ktx", version.ref = "biometric" }
 junit = { module = "junit:junit", version.ref = "junit" }

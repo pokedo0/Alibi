@@ -196,6 +196,9 @@
     <string name="ui_videoRecorder_cameraType_macro">Macro</string>
     <string name="ui_videoRecorder_cameraType_unknown">Camera</string>
     <string name="ui_settings_option_videoCameraSelection_title">Camera</string>
+    <string name="ui_settings_option_dualCamera_title">Dual camera recording</string>
+    <string name="ui_settings_option_dualCamera_description">Record front and back camera at the same time. Creates two separate video files per recording. Requires Android 11+ and device hardware support.</string>
+    <string name="ui_settings_option_dualCamera_unsupported">Your device does not support dual camera recording.</string>
     <string name="ui_settings_option_saveFolder_explainInternalFolder_explanation">To protect your privacy, Alibi stores its batches into its own private, encrypted storage. This storage is only accessible by Alibi and can\'t be accessed by other apps or by a possible intruder. Once you save the recording, you will be asked where you want to save the recording to.</string>
     <string name="ui_rotateDevice_portrait_label">Please rotate your device to portait mode</string>
     <string name="goBack">Back</string>
