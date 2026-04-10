@@ -27,8 +27,14 @@ abstract class IntervalRecorderService<I, B : BatchesFolder> :
     // This prevents the service from deleting the currently available files, so that
     // they can be safely used to save the recording.
     // Once finished, make sure to unlock the files using `unlockFiles`.
+    //
+    // Idempotent: if already locked, this is a no-op so later calls don't
+    // shift the lock forward and accidentally expose the originally locked
+    // batch to cleanup.
     fun lockFiles() {
-        lockedIndex = counter
+        if (lockedIndex == null) {
+            lockedIndex = counter
+        }
     }
 
     // Unlocks and deletes the files that were locked using `lockFiles`.
