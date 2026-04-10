@@ -144,6 +144,7 @@ fun RecorderEventsHandler(
         recorder: RecorderModel,
         cleanupOldFiles: Boolean = false
     ): CompletableDeferred<Unit> {
+        Log.i("Alibi", "===== saveRecording CALLED for ${recorder.javaClass.simpleName}")
         val completer = CompletableDeferred<Unit>()
 
         // If processing takes this short, don't show the processing dialog
@@ -196,7 +197,9 @@ fun RecorderEventsHandler(
                         )
                     }
 
+                    Log.i("Alibi", "===== saveRecording: foldersToSave.size=${foldersToSave.size}, dualMode=$dualMode")
                     foldersToSave.forEachIndexed { index, folder ->
+                        Log.i("Alibi", "===== saveRecording: processing folder $index (${folder.javaClass.simpleName})")
                         val baseFileName = folder.getName(
                             recording.recordingStart,
                             folder.mergedFileExtension,
