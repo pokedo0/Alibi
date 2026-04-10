@@ -116,6 +116,7 @@ class NativeMediaConcatenator private constructor() {
 			// Detect tracks from first file
 			val probeHandle = createExtractor(context, inputSources.first())
 			val muxerTrackIndices: List<Int>
+			var orientationHint = 0
 			try {
 				val trackCount = probeHandle.extractor.trackCount
 				if (trackCount == 0) {
@@ -125,10 +126,25 @@ class NativeMediaConcatenator private constructor() {
 				// Map extractor track indices to muxer track indices
 				muxerTrackIndices = (0 until trackCount).map { i ->
 					val format = probeHandle.extractor.getTrackFormat(i)
+					// Capture rotation metadata from the first video track we find
+					if (orientationHint == 0 &&
+						format.getString(MediaFormat.KEY_MIME)?.startsWith("video/") == true
+					) {
+						orientationHint = runCatching {
+							format.getInteger(MediaFormat.KEY_ROTATION)
+						}.getOrDefault(0)
+					}
 					muxer.addTrack(format)
 				}
 			} finally {
 				probeHandle.release()
+			}
+
+			// Apply the rotation before starting the muxer so player apps render
+			// the output with the correct orientation. Without this, vertical
+			// recordings play back sideways.
+			if (orientationHint != 0) {
+				runCatching { muxer.setOrientationHint(orientationHint) }
 			}
 
 			muxer.start()
