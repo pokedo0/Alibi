@@ -38,7 +38,7 @@ android {
 
 	defaultConfig {
 		multiDexEnabled = true
-		applicationId = "app.myzel394.alibi"
+		applicationId = "app.master.alibi"
 		minSdk = 24
 		targetSdk = 36
 		versionCode = 18
