@@ -29,8 +29,8 @@ jobs:
           java-version: 17
           cache: 'gradle'
 
-      - name: Build APKs 📱
-        run: ./gradlew bundleRelease
+      - name: Build AABs 📱
+        run: ./gradlew clean bundleRelease -PdisableSplits
 
       - name: Upload APKs 🚀
         uses: r0adkll/upload-google-play@v1
