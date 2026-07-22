@@ -33,21 +33,35 @@ jobs:
       - name: Build APKs 📱
         run: ./gradlew assembleRelease
 
-      - name: Upload APKs 🚀
+      - name: Upload APKs to Release 🚀
         uses: softprops/action-gh-release@v1
-        if: startsWith(github.ref, 'refs/tags/') || github.event_name == 'workflow_dispatch'
+        if: startsWith(github.ref, 'refs/tags/')
         env:
           GITHUB_TOKEN: ${{ secrets.GH_TOKEN }}
         with:
           files: app/build/outputs/apk/release/*.apk
 
+      - name: Upload APKs to Artifacts 📦
+        uses: actions/upload-artifact@v4
+        if: github.event_name == 'workflow_dispatch'
+        with:
+          name: release-apks
+          path: app/build/outputs/apk/release/*.apk
+
       - name: Build AABs 📱
         run: ./gradlew bundleRelease
 
-      - name: Upload APKs bundles 🚀
+      - name: Upload AABs to Release 🚀
         uses: softprops/action-gh-release@v1
-        if: startsWith(github.ref, 'refs/tags/') || github.event_name == 'workflow_dispatch'
+        if: startsWith(github.ref, 'refs/tags/')
         env:
           GITHUB_TOKEN: ${{ secrets.GH_TOKEN }}
         with:
           files: app/build/outputs/bundle/release/*.aab
+
+      - name: Upload AABs to Artifacts 📦
+        uses: actions/upload-artifact@v4
+        if: github.event_name == 'workflow_dispatch'
+        with:
+          name: release-aabs
+          path: app/build/outputs/bundle/release/*.aab
