@@ -1,6 +1,7 @@
 name: Build and publish app
 
 on:
+  workflow_dispatch:
   release:
     types: [ published ]
 
@@ -34,7 +35,7 @@ jobs:
 
       - name: Upload APKs 🚀
         uses: softprops/action-gh-release@v1
-        if: startsWith(github.ref, 'refs/tags/')
+        if: startsWith(github.ref, 'refs/tags/') || github.event_name == 'workflow_dispatch'
         env:
           GITHUB_TOKEN: ${{ secrets.GH_TOKEN }}
         with:
@@ -45,7 +46,7 @@ jobs:
 
       - name: Upload APKs bundles 🚀
         uses: softprops/action-gh-release@v1
-        if: startsWith(github.ref, 'refs/tags/')
+        if: startsWith(github.ref, 'refs/tags/') || github.event_name == 'workflow_dispatch'
         env:
           GITHUB_TOKEN: ${{ secrets.GH_TOKEN }}
         with:
